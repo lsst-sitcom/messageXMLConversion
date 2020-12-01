@@ -34,14 +34,10 @@ def getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation):
     excelFileLocation_Enumeration = path + "/" + cscName + "/"  + fileBase + "_Enumerations.xlsx"
     excelFileLocation_Literal = path + "/" + cscName + "/"  + fileBase + "_Enumerations_Options.xlsx"
 
-
-    
-    
-
     #Get message Excel file
     if os.path.isfile(excelFileLocation_Message):
         wb = load_workbook(filename = excelFileLocation_Message)
-        
+
         #Verifiy message Excel ws is in correct format
         if 'Sheet1' in wb.sheetnames:
             ws = wb['Sheet1']
@@ -51,7 +47,7 @@ def getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation):
                 #Get message parameter Excel file
                 if os.path.isfile(excelFileLocation_Parameter):
                     wb_p = load_workbook(filename = excelFileLocation_Parameter)
-                    
+
                     #Verifiy message parameter Excel ws is in correct format
                     if 'Sheet1' in wb_p.sheetnames:
                         ws_p = wb_p['Sheet1']
@@ -60,7 +56,7 @@ def getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation):
                             #Get enumeration Excel file
                             if os.path.isfile(excelFileLocation_Enumeration):
                                 wb_e = load_workbook(filename = excelFileLocation_Enumeration)
-                                
+
                                 #Verifiy enumeration Excel ws is in correct format
                                 if 'Sheet1' in wb_e.sheetnames:
                                     ws_e = wb_e['Sheet1']
@@ -69,7 +65,7 @@ def getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation):
                                         #Get enumeration literal Excel file
                                         if os.path.isfile(excelFileLocation_Literal):
                                             wb_l = load_workbook(filename = excelFileLocation_Literal)
-                                            
+
                                             #Verifiy enumeration literal Excel ws is in correct format
                                             if 'Sheet1' in wb_l.sheetnames:
                                                 ws_l = wb_l['Sheet1']
@@ -126,54 +122,30 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
     messagePropOrder = 0
     enumOrder = 0
     enumLitOrder = 0
-    
-    
-    
-    if (ws['N1'].value == 'SyncAction'):
-    
-        ws.delete_cols(14)
-        new_column =ws.max_column+1
-        ws.insert_cols(new_column)
-        ws.cell(row=1, column =new_column, value = 'SyncAction')
-    else:
-       
-        new_column =ws.max_column
-        ws.insert_cols(new_column)
-        ws.cell(row=1, column =new_column, value = 'SyncAction')
-    
-    
-    if (ws_p['J1'].value == 'SyncAction'):
-        ws_p.delete_cols(10)
-        new_column3 =ws_p.max_column +1
-        ws_p.insert_cols(new_column3)
-        ws_p.cell(row=1, column =new_column3, value = 'SyncAction')
-    else:
-        new_column3 =ws_p.max_column
-        ws_p.insert_cols(new_column3)
-        ws_p.cell(row=1, column =new_column3, value = 'SyncAction')
-        
 
-    
-    if (ws_e['D1'].value == 'SyncAction'):
-        ws_e.delete_cols(4)
-        new_column1 =ws_e.max_column +1
-        ws_e.insert_cols(new_column1)
-        ws_e.cell(row=1, column =new_column1, value = 'SyncAction')
-    else:
-        new_column1 =ws_e.max_column
-        ws_e.insert_cols(new_column1)
-        ws_e.cell(row=1, column =new_column1, value = 'SyncAction')
+   #Clearing the SyncAction Column in Signals
+    ws.delete_cols(14)
+    ws.insert_cols(14)
+    ws.cell(row=1, column =14, value = 'SyncAction')
+    logger.info("Clearing the SyncAction column")
 
-    
-    if (ws_l['E1'].value == 'SyncAction'):
-        ws_l.delete_cols(5)
-        new_column2 =ws_l.max_column +1
-        ws_l.insert_cols(new_column2)
-        ws_l.cell(row=1, column =new_column2, value = 'SyncAction')
-    else:
-        new_column2 =ws_l.max_column
-        ws_l.insert_cols(new_column2)
-        ws_l.cell(row=1, column =new_column2, value = 'SyncAction')
+    #Clearing the SyncAction Column in signal properties
+    ws_p.delete_cols(10)
+    ws_p.insert_cols(10)
+    ws_p.cell(row=1, column =10, value = 'SyncAction')
+    logger.info("Clearing the SyncAction column")
+
+    #Clearing the SyncAction Column in enumerations
+    ws_e.delete_cols(4)
+    ws_e.insert_cols(4)
+    ws_e.cell(row=1, column =4, value = 'SyncAction')
+    logger.info("Clearing the SyncAction column")
+
+    #Clearing the SyncAction Column in enemuration literals
+    ws_l.delete_cols(5)
+    ws_l.insert_cols(5)
+    ws_l.cell(row=1, column =5, value = 'SyncAction')
+    logger.info("Clearing the SyncAction column")
 
 
     if messageType == "Commands":
@@ -189,7 +161,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
     for enum in treeRoot.findall('Enumeration'):
         enumOrder = enumOrder + 1
         count_e = 0
-        enumName = enum.text.split('_')[0]
+        enumNm = enum.text.split('_')[0]
+        enumName = enumNm.lstrip()
         enumNameLower = enumName[0].lower() + enumName[1:]
         messageTypeEnums.append(enumNameLower)
 
@@ -199,8 +172,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                 if cell.value == enumNameLower:
                     count_e = count_e + 1
                     thisRow_e = cell.row
-                    ws_e.cell(row=thisRow_e, column=2, value=enumOrder)
-                    ws_e.cell(row=thisRow_e, column=new_column1, value="Updated")
+                    ws_e.cell(row=thisRow_e, column=2, value=str(enumOrder))
+                    ws_e.cell(row=thisRow_e, column=4, value="Update")
 
         #If no existing enumeration row found, create a new row
         if count_e == 0:
@@ -208,8 +181,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             totalRows_e = len(filteredNumRows_e)
             newRow_e = totalRows_e + 1
             ws_e.cell(row=newRow_e, column=1, value=enumNameLower)
-            ws_e.cell(row=newRow_e, column=2, value=enumOrder)
-            ws_e.cell(row=newRow_e, column=new_column1, value="Add")
+            ws_e.cell(row=newRow_e, column=2, value=str(enumOrder))
+            ws_e.cell(row=newRow_e, column=4, value="Add")
         elif count_e > 1:
             logger.error("There are duplicate rows for enumeration {%s}" % enumNameLower)
 
@@ -218,9 +191,11 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         for lit in enumLits:
             enumLitOrder = enumLitOrder + 1
             count_l = 0
-            litOwner = lit.split('_')[0]
+            litOwn = lit.split('_')[0]
+            litOwner = litOwn.lstrip()
             litOwnerLower = litOwner[0].lower() + litOwner[1:]
-            litName = lit.split('_')[1]
+            lst = lit.lstrip()
+            litName = lst.split('_',1)[1]
             litTup = (litOwnerLower, litName)
             enumLiterals.append(litTup)
 
@@ -231,13 +206,13 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                     rowList.append(cell.value)
                     thisRow = cell.row
                 tupRow = tuple(rowList)
-                
+
                 if tupRow == litTup:
                     count_l = count_l + 1
-                    ws_l.cell(row=thisRow, column=3, value=enumLitOrder)
-                    ws_l.cell(row=thisRow, column=new_column2, value="Updated")
+                    ws_l.cell(row=thisRow, column=3, value=str(enumLitOrder))
+                    ws_l.cell(row=thisRow, column=5, value="Update")
 
-        
+
             #If no existing literal row found, create a new row
             if count_l == 0:
                 filteredNumRows_l = list(filter(None, ws_l['A']))
@@ -245,50 +220,46 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                 newRow_l = totalRows_l + 1
                 ws_l.cell(row=newRow_l, column=1, value=litOwnerLower)
                 ws_l.cell(row=newRow_l, column=2, value=litName)
-                ws_l.cell(row=newRow_l, column=3, value=enumLitOrder)
-                ws_l.cell(row=newRow_l, column=new_column2, value="Add")
+                ws_l.cell(row=newRow_l, column=3, value=str(enumLitOrder))
+                ws_l.cell(row=newRow_l, column=5, value="Add")
             elif count_l > 1:
                 errorMessage = litTup
                 logger.error("There are duplicate rows for enumeration option {%s}" % (errorMessage,))
             del litTup
-        
-       
-        
+
+
+
     #Remove any enumeration rows not in XML
     i=2
-    #while i <= ws_e.max_row:
-    for row in ws_e.iter_rows(min_row=2, max_col=new_column1):
-
+    while i <= ws_e.max_row:
         cellVal = ws_e.cell(row=i, column=1).value
-        if cellVal not in messageTypeEnums:
-            #ws_e.delete_rows(i, 1)
-            ws_e.cell(row=i, column=new_column1, value="Remove")
+        if cellVal == None:
+            ws_e.delete_rows(i)
+            continue
+        elif (cellVal not in messageTypeEnums) :
+            ws_e.cell(row=i, column=4, value="Delete")
+            logger.info("The row for enumeration with the name {%s} is not found in the XML and has been marked for deletion." % cellVal)
+        i += 1
 
-            logger.info("The row for enumeration with the name {%s} is not found in the XML and has been deleted." % cellVal)
-        #else:
-            i += 1
-    
     #Save enumeration file
     wb_e.save(excelFileLocation_Enumeration)
 
     #Remove any literal rows not in XML
     i=2
-    #while i <= ws_l.max_row:
-    for row in ws_l.iter_rows(min_row=2, max_col=new_column2):
-
+    while i <= ws_l.max_row:
         tupVal = (ws_l.cell(row=i, column=1).value, ws_l.cell(row=i, column=2).value)
-        if tupVal not in enumLiterals:
-            #ws_l.delete_rows(i, 1)
-            ws_l.cell(row=i, column=new_column2, value="Remove")
-
-            logger.info("The row for enumeration option with {%s} is not found in the XML and has been deleted." % (tupVal,))
-        #else:
-            i += 1
+        if (ws_l.cell(row=i, column=1).value == None) and (ws_l.cell(row=i, column=2).value == None) :
+            ws_l.delete_rows(i)
+            continue
+        elif (tupVal not in enumLiterals) :
+            ws_l.cell(row=i, column=5, value="Delete")
+            logger.info("The row for enumeration literal with the name {%s} is not found in the XML and has been marked for deletion." % (tupVal,))
+        i += 1
 
 
     #Save literals file
     wb_l.save(excelFileLocation_Literal)
-    
+
     for member in treeRoot.findall(messageRoot):
         messageOrder = messageOrder + 1
         count = 0
@@ -304,13 +275,13 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         action = ""
         value = ""
         desc = ""
-        
+
         #Get values
         if member.find('Alias') != None:
             alias = member.find('Alias').text
         else:
             if member.find('EFDB_Topic') != None:
-                alias = member.find('EFDB_Topic').text.split('_')[1]
+                alias = member.find('EFDB_Topic').text.split('_')[-1]
             else:
                 logger.error("The message has no Alias or EFDB_Topic.")
                 sys.exit()
@@ -339,12 +310,12 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             value = member.find('Value').text
         if member.find('Description') != None:
             desc = member.find('Description').text
-        
+
         #Add message topic and alias to lists
         salMessages.append(topic)
         salAlias.append(alias)
-        
-        
+
+
         #Update message row if existing message is found
         for row in ws.iter_rows(min_row=2, max_col=1):
             for cell in row:
@@ -361,9 +332,9 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                     ws.cell(row=thisRow, column=9, value=action)
                     ws.cell(row=thisRow, column=10, value=value)
                     ws.cell(row=thisRow, column=11, value=explanation)
-                    ws.cell(row=thisRow, column=12, value=messageOrder)
-                    ws.cell(row=thisRow, column=new_column, value="Updated")
-        
+                    ws.cell(row=thisRow, column=12, value=str(messageOrder))
+                    ws.cell(row=thisRow, column=14, value="Update")
+
         #If no existing message row found, create a new row
         if count == 0:
             filteredNumRows = list(filter(None, ws['A']))
@@ -380,11 +351,11 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             ws.cell(row=newRow, column=9, value=action)
             ws.cell(row=newRow, column=10, value=value)
             ws.cell(row=newRow, column=11, value=explanation)
-            ws.cell(row=newRow, column=12, value=messageOrder)
-            ws.cell(row=newRow, column=new_column, value="Add")
+            ws.cell(row=newRow, column=12, value=(messageOrder))
+            ws.cell(row=newRow, column=14, value="Add")
         elif count > 1:
             logger.error("There are duplicate rows for message {%s}" % alias)
-        
+
         #Now start on the parameters
         for item in items:
             messagePropOrder = messagePropOrder + 1
@@ -395,7 +366,7 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             idl_size = ""
             unit = ""
             param_count = ""
-            
+
 
             #Get values
             if item.find('EFDB_Name') != None:
@@ -408,10 +379,12 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             if item.find('IDL_Type') != None:
                 if alias in messageTypeEnums:
                     idl_type = alias
+                elif param_name in messageTypeEnums:
+                    idl_type = param_name
                 else:
                     idl_type = item.find('IDL_Type').text
                     if idl_type == "string":
-                        idl_type = idl_type[0].upper() + idl_type[1:]                    
+                        idl_type = idl_type[0].upper() + idl_type[1:]
             if item.find('IDL_Size') != None:
                 idl_size = int(item.find('IDL_Size').text)
             if item.find('Units') != None:
@@ -421,10 +394,10 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
 
             #Create tuple of owner and name
             tup = (topic, param_name)
-            
+
             #Add param tuple to list
             messageParams.append(tup)
-            
+
             #Update parameter row if existing message is found
             for row in ws_p.iter_rows(min_row=2, max_col=2):
                 rowList = []
@@ -432,17 +405,17 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                     rowList.append(cell.value)
                     thisRow = cell.row
                 tupRow = tuple(rowList)
-                
+
                 if tupRow == tup:
                     count_p += 1
                     ws_p.cell(row=thisRow, column=3, value=param_desc)
                     ws_p.cell(row=thisRow, column=4, value=idl_type)
-                    ws_p.cell(row=thisRow, column=5, value=idl_size)
+                    ws_p.cell(row=thisRow, column=5, value=str(idl_size))
                     ws_p.cell(row=thisRow, column=6, value=unit)
                     ws_p.cell(row=thisRow, column=7, value=param_count)
-                    ws_p.cell(row=thisRow, column=8, value=messagePropOrder)
-                    ws_p.cell(row=thisRow, column=new_column3, value="Updated")
-        
+                    ws_p.cell(row=thisRow, column=8, value=str(messagePropOrder))
+                    ws_p.cell(row=thisRow, column=10, value="Update")
+
             #If no existing parameter row found, create a new row
             if count_p == 0:
                 filteredNumRows_p = list(filter(None, ws_p['A']))
@@ -452,46 +425,43 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                 ws_p.cell(row=newRow_p, column=2, value=param_name)
                 ws_p.cell(row=newRow_p, column=3, value=param_desc)
                 ws_p.cell(row=newRow_p, column=4, value=idl_type)
-                ws_p.cell(row=newRow_p, column=5, value=idl_size)
+                ws_p.cell(row=newRow_p, column=5, value=str(idl_size))
                 ws_p.cell(row=newRow_p, column=6, value=unit)
                 ws_p.cell(row=newRow_p, column=7, value=param_count)
-                ws_p.cell(row=newRow_p, column=8, value=messagePropOrder)
-                ws_p.cell(row=newRow_p, column=new_column3, value="Add")
+                ws_p.cell(row=newRow_p, column=8, value=str(messagePropOrder))
+                ws_p.cell(row=newRow_p, column=10, value="Add")
 
             elif count_p > 1:
                 errorMessage = tup
                 logger.error("There are duplicate rows for message parameters {%s}" % (errorMessage,))
             del tup
-   
+
     #Remove any message rows not in XML
     i=2
-    #while i <= ws.max_row:
-    for row in ws.iter_rows(min_row=2, max_col=new_column):
-
+    while i <= ws.max_row:
         cellVal = ws.cell(row=i, column=1).value
-        if cellVal not in salMessages:
-            #ws.delete_rows(i, 1)
-            ws.cell(row=i, column=new_column, value="Remove")
-            logger.info("The row for message with the name {%s} is not found in the XML and has been deleted." % cellVal)
-        #else:
-            i += 1
-    
+        if cellVal == None :
+           ws.delete_rows(i)
+           continue
+        elif (cellVal not in salMessages) :
+            ws.cell(row=i, column=14, value="Delete")
+            logger.info("The row for message with the name {%s} is not found in the XML and has been marked for deletion." % cellVal)
+        i += 1
+
     #Save messages file
     wb.save(excelFileLocation_Message)
 
     #Remove any parameter rows not in XML
     i=2
-    #while i <= ws_p.max_row:
-    for row in ws_p.iter_rows(min_row=2, max_col=new_column3):
-
+    while i <= ws_p.max_row:
         tupVal = (ws_p.cell(row=i, column=1).value, ws_p.cell(row=i, column=2).value)
-        if tupVal not in messageParams:
-            #ws_p.delete_rows(i, 1)
-            ws_p.cell(row=i, column=new_column3, value="Remove")
-
-            logger.info("The row for message parameter with {%s} is not found in the XML and has been deleted." % (tupVal,))
-        #else:
-            i += 1
+        if (ws_p.cell(row=i, column=1).value == None) and (ws_p.cell(row=i, column=2).value == None) :
+            ws.delete_rows(i)
+            continue
+        elif (tupVal not in messageParams) :
+            ws_p.cell(row=i, column=10, value="Delete")
+            logger.info("The row for message parameter with {%s} is not found in the XML and has been marked for deletion." % (tupVal,))
+        i += 1
 
     #Save parameters file
     wb_p.save(excelFileLocation_Parameter)
