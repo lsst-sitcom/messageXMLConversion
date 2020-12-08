@@ -1,4 +1,5 @@
 #Import modules
+import pandas as pd
 import openpyxl
 from openpyxl import load_workbook
 import tkinter
@@ -13,17 +14,19 @@ import sys
 #Define functions
 def getXML(root, currdir):
     origXML = currdir + "/XML/sal_interfaces"
-    root.xmlFilename = filedialog.askopenfilename(initialdir=origXML, title='Please select the GitHub XML file', filetypes=[("XML Files", "*.xml")])
-    xmlFileLocation = root.xmlFilename
-    if len(xmlFileLocation) > 0:
-        #Temporarily set path to same directory as python file
-        path, filename = os.path.split(xmlFileLocation)
-        path = currdir
-        fileBase = filename.split('.')[0]
-        messageType = fileBase.split('_')[1]
-        cscName = fileBase.split('_')[0]
-        logger.info("You chose %s" % xmlFileLocation)
-        getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation)
+    root.xmlFilename = filedialog.askopenfilenames(initialdir=origXML, title='Please select the GitHub XML file(s)', filetypes=[("XML Files", "*.xml")])
+    selectedFiles = root.xmlFilename
+    xmlFileList = list(selectedFiles)
+    if len(xmlFileList) > 0:
+        for xmlFileLocation in xmlFileList:
+            #Temporarily set path to same directory as python file
+            path, filename = os.path.split(xmlFileLocation)
+            path = currdir
+            fileBase = filename.split('.')[0]
+            messageType = fileBase.split('_')[1]
+            cscName = fileBase.split('_')[0]
+            logger.info("You chose %s" % xmlFileLocation)
+            getExcelFiles(path, fileBase, messageType, cscName, xmlFileLocation)
     else:
         logger.warning("You must select an XML file.")
         getXML(root, currdir)
@@ -242,7 +245,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         i += 1
 
     #Save enumeration file
-    wb_e.save(excelFileLocation_Enumeration)
+    pd_wb_e = pd.DataFrame(ws_e.values)
+    pd_wb_e.to_excel(excelFileLocation_Enumeration,header=False,index=False)
 
     #Remove any literal rows not in XML
     i=2
@@ -258,7 +262,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
 
 
     #Save literals file
-    wb_l.save(excelFileLocation_Literal)
+    pd_wb_l = pd.DataFrame(ws_l.values)
+    pd_wb_l.to_excel(excelFileLocation_Literal,header=False,index=False)
 
     for member in treeRoot.findall(messageRoot):
         messageOrder = messageOrder + 1
@@ -449,7 +454,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         i += 1
 
     #Save messages file
-    wb.save(excelFileLocation_Message)
+    pd_wb = pd.DataFrame(ws.values)
+    pd_wb.to_excel(excelFileLocation_Message,header=False,index=False)
 
     #Remove any parameter rows not in XML
     i=2
@@ -464,7 +470,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         i += 1
 
     #Save parameters file
-    wb_p.save(excelFileLocation_Parameter)
+    pd_wb_p = pd.DataFrame(ws_p.values)
+    pd_wb_p.to_excel(excelFileLocation_Parameter,header=False,index=False)
 
     #Check for unused enumerations
     for e in messageTypeEnums:
