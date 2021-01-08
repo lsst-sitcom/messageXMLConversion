@@ -16,11 +16,27 @@ import subprocess
 from pathlib import Path
 
 #Define functions
+def needExport():
+    response = input("Do you need to export the Excel files? [Y/N]: ")
+    #If exports are needed get login credentials
+    if response in questionYes:
+        logger.info("You chose to export the Excel files.")
+
+        #Prompt to select generate script
+        selectGenerateFile()
+    elif response in questionNo:
+        logger.info("You chose to skip exporting the Excel files.")
+        generateFile = 0
+        getXML(generateFile)
+    else:
+        print("Please enter 'yes' or 'no'...")
+        needExport()
+
 def showErrorMessage(fileName, errorList):
     windowTitle = fileName + " Errors: Continue?"
     topLabel = "The Excel files for the " + fileName + " had the following errors. The Excel files will be skipped from being updated.\n\n"
     bottomLabel = "\n\nDo you want to continue with the rest of the selected CSC XML files?\n\n"
-    errorWindow = tk.Tk()
+    errorWindow = tk.Toplevel()
     errorWindow.title(windowTitle)
 
     #Frame for error message
@@ -70,57 +86,6 @@ def quitProcess():
 def disableEvent():
     pass
 
-def showExportQuestion():
-    exportTitle = "Export Excel Files?"
-    exportWindow = tk.Tk()
-    exportWindow.title(exportTitle)
-    exportLabel = "Do you need to export the Excel files from the model?"
-
-    #Frame for export message
-    exportFrame = ttk.Frame(exportWindow)
-    exportFrame.grid(row=0, column=0, columnspan=3, ipadx=10, ipady=10, sticky="N, W, E, S")
-    exportWindow.columnconfigure(0, weight=1)
-    exportWindow.rowconfigure(1, weight=1)
-    exportFrame.columnconfigure(0, weight=1)
-    exportFrame.rowconfigure(0, weight=1)
-    label = ttk.Label(exportFrame, text=exportLabel).grid(row=0, column=0, columnspan=3)
-
-    #Button frame
-    buttonFrame = ttk.Frame(exportWindow)
-    buttonFrame.grid(row=1, column=0, columnspan=2, ipadx=10, ipady=10, sticky="W, E")
-    buttonFrame.columnconfigure(0, weight=1)
-    buttonFrame.rowconfigure(1, weight=1)
-    skipButton = ttk.Button(buttonFrame, text="Skip", command= lambda: skipExport(exportWindow)).grid(row=1, column=0, padx=10, pady=10, sticky="SE")
-    exportButton = ttk.Button(buttonFrame, text="Export", default="active", command= lambda: exportExcel(exportWindow)).grid(row=1, column=1, padx=10, pady=10, sticky="SE")
-
-    #Center the window
-    myLeftPos = (exportWindow.winfo_screenwidth() - 350) / 2
-    myTopPos = (exportWindow.winfo_screenheight() - 150) / 2
-    exportWindow.geometry( "%dx%d+%d+%d" % (350, 150, myLeftPos, myTopPos))
-
-    #Require a button click
-    exportWindow.protocol("WM_DELETE_WINDOW", disableEvent)
-    exportWindow.resizable(False, False)
-
-    #Open the window
-    exportWindow.mainloop()
-
-def exportExcel(exportWindow):
-    logger.info("You chose to export the Excel files.")
-    global needExport
-    needExport = 1
-
-    #Close window
-    exportWindow.quit()
-    exportWindow.destroy()
-
-def skipExport(exportWindow):
-    logger.info("You chose to skip exporting the Excel files.")
-
-    #Close window
-    exportWindow.quit()
-    exportWindow.destroy()
-
 def selectGenerateFile():
     root.scriptFilename = filedialog.askopenfilename(initialdir=home, title='Please select the MagicDraw generate.bat (Windows) or generate.sh (macOS) file', filetypes=[("generate.bat", "*.bat"), ("generate.sh", "*.sh")])
     generateFile = root.scriptFilename
@@ -136,243 +101,183 @@ def getXML(generateFile):
     root.xmlFilename = filedialog.askopenfilenames(initialdir=origXML, title='Please select the GitHub XML file(s)', filetypes=[("XML Files", "*.xml")])
     selectedFiles = root.xmlFilename
     xmlFileList = list(selectedFiles)
+    logger.info("You chose: %s" % xmlFileList)
+    #If we need to export the Excel Files
     if len(xmlFileList) > 0:
-        logger.info("You chose: %s" % xmlFileList)
-        for xmlFileLocation in xmlFileList:
-            #Temporarily set path to same directory as python file
-            path, filename = os.path.split(xmlFileLocation)
-            path = currdir
-            fileName = filename
-            fileBase = filename.split('.')[0]
-            messageType = fileBase.split('_')[1]
-            cscName = fileBase.split('_')[0]
-            logger.info("Preparing file: %s" % xmlFileLocation)
-            preparedFile = prepareExcelFiles(path, fileName, fileBase, messageType, cscName, xmlFileLocation, generateFile)
-            if preparedFile == 1:
-                continue
+        exportResult = 0
+        if generateFile != 0:
+            exportResult = exportExcel(xmlFileList, generateFile)
+        if exportResult == 0 :
+            for xmlFileLocation in xmlFileList:
+                #Temporarily set path to same directory as python file
+                path, filename = os.path.split(xmlFileLocation)
+                path = currdir
+                fileName = filename
+                fileBase = filename.split('.')[0]
+                messageType = fileBase.split('_')[1]
+                cscName = fileBase.split('_')[0]
+                logger.info("Preparing file: %s" % xmlFileLocation)
+                preparedFile = prepareExcelFiles(path, fileName, fileBase, messageType, cscName, xmlFileLocation, generateFile)
+                if preparedFile == 1:
+                    continue
+        else:
+            messagebox.showerror("Excel Export Errors", exportResult)
+            #sys.exit()
     else:
         logger.warning("You must select an XML file.")
         getXML(generateFile)
+def exportExcel(xmlFileList, generateFile):
+    propArray = []
+    for xmlFileLocation in xmlFileList:
+        #Temporarily set path to same directory as python file
+        path, filename = os.path.split(xmlFileLocation)
+        path = currdir
+        fileName = filename
+        fileBase = filename.split('.')[0]
+        messageType = fileBase.split('_')[1]
+        cscName = fileBase.split('_')[0]
+        #Set the file locations
+        fileLocation = path + "/" + cscName + "/"
+        excelFileLocation = fileLocation + fileBase + ".xlsx"
+        propFileLocation = fileLocation + fileBase + ".properties"
+
+        #Create the property file
+        project = 'project = Telescope & Site Software Components\n'
+        package = 'package = ' + cscName + '::Signals::' + messageType + '\n'
+        template = 'template = CSC Signal Export\n'
+        output = 'output = ' + excelFileLocation
+
+        propFile = open(propFileLocation, "w")
+        propFile.write(project)
+        propFile.write(package)
+        propFile.write(template)
+        propFile.write(output)
+        propFile.close()
+        propArray.append(propFileLocation)
+
+    propList = '" "'.join(propArray)
+    #Set the property argument
+    propArg = '-properties "' + propList + '"'
+
+    exportResult = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-ssl true', '-login "rgenerator"', '-spassword "4e0e16bb44e1c62fe007b776d088c899c585425cbf6f424161867c13735f7f67e683f676e4eb811e4ad464e04c822cb14c1c8a385bc7461b8e94ae7292a31ee9e2758a20124d77b7c79546c6be4878db10f021f91f147833cc63fb93b8aefb6f13110dd959128c49a1da292c7ee8f98640982e1e75b40abc397514d4712d471c"', '-leaveprojectopen true', propArg], check=True)
+    result = exportResult.returncode
+    return result
 
 def prepareExcelFiles(path, fileName, fileBase, messageType, cscName, xmlFileLocation, generateFile):
     errorArray = []
     errorFlag = 0
-    excelFileLocation_Message = path + "/" + cscName + "/" + fileBase + ".xlsx"
-    excelFileLocation_Parameter = path + "/" + cscName + "/"  + fileBase + "_Properties.xlsx"
-    excelFileLocation_Enumeration = path + "/" + cscName + "/"  + fileBase + "_Enumerations.xlsx"
-    excelFileLocation_Literal = path + "/" + cscName + "/"  + fileBase + "_Enumerations_Options.xlsx"
-
-    #If we need to export the Excel Files
-    if generateFile != 0:
-        #Set the package argument
-        packageArg = '-package "' + cscName + '::Signals::' + messageType + '"'
-
-        #Generate the message Excel export
-        outputMessageArg = '-output "' + excelFileLocation_Message + '"'
-        excelMessageExport = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-project "Telescope & Site Software Components"', '-template "CSC Signal Export"', '-ssl true', outputMessageArg, packageArg, loginArg, passwordArg], check=True)
-        result = excelMessageExport.returncode
-    else:
-        result = 0
+    excelFileLocation = path + "/" + cscName + "/" + fileBase + ".xlsx"
 
     #Verify the columns
-    if result == 0:
-        if generateFile != 0:
-            logger.info("The following export was successful: %s" % excelFileLocation_Message)
+    #Get message Excel file
+    if os.path.isfile(excelFileLocation):
+        wb = load_workbook(filename = excelFileLocation)
+        #Verify message Excel ws is in correct format
+        if 'Signals' in wb.sheetnames:
+            ws = wb['Signals']
+            if (ws['A1'].value == 'Name') and (ws['B1'].value == 'Alias') and (ws['C1'].value == 'Documentation') and (ws['D1'].value == 'Subsystem') and (ws['E1'].value == 'Version') and (ws['F1'].value == 'Author') and (ws['G1'].value == 'Device') and (ws['H1'].value == 'Property') and (ws['I1'].value == 'Action') and (ws['J1'].value == 'Value') and (ws['K1'].value == 'Explanation') and (ws['L1'].value == 'Order') and (ws['M1'].value == 'Element ID'):
+                logger.info("The {%s} file has the required format." % excelFileLocation)
 
-        #Get message Excel file
-        if os.path.isfile(excelFileLocation_Message):
-            wb = load_workbook(filename = excelFileLocation_Message)
-            #Verify message Excel ws is in correct format
-            if 'Sheet1' in wb.sheetnames:
-                ws = wb['Sheet1']
-                if (ws['A1'].value == 'Name') and (ws['B1'].value == 'Alias') and (ws['C1'].value == 'Documentation') and (ws['D1'].value == 'Subsystem') and (ws['E1'].value == 'Version') and (ws['F1'].value == 'Author') and (ws['G1'].value == 'Device') and (ws['H1'].value == 'Property') and (ws['I1'].value == 'Action') and (ws['J1'].value == 'Value') and (ws['K1'].value == 'Explanation') and (ws['L1'].value == 'Order') and (ws['M1'].value == 'Element ID'):
-                    logger.info("The {%s} file has the required format." % excelFileLocation_Message)
+                #Clearing the SyncAction Column in Signals
+                logger.info("Clearing the 'Signals' sheet in the {%s} SyncAction column." % excelFileLocation)
+                ws.delete_cols(14)
+                ws.insert_cols(14)
+                ws.cell(row=1, column =14, value = 'SyncAction')
 
-                    #Clearing the SyncAction Column in Signals
-                    logger.info("Clearing the {%s} SyncAction column." % excelFileLocation_Message)
-                    ws.delete_cols(14)
-                    ws.insert_cols(14)
-                    ws.cell(row=1, column =14, value = 'SyncAction')
+                #Verify message parameter Excel ws is in correct format
+                if 'Signal Properties' in wb.sheetnames:
+                    ws_p = wb['Signal Properties']
+                    if (ws_p['A1'].value == 'Owner') and (ws_p['B1'].value == 'Name') and (ws_p['C1'].value == 'Documentation') and (ws_p['D1'].value == 'Type') and (ws_p['E1'].value == 'Size') and (ws_p['F1'].value == 'Type Modifier') and (ws_p['G1'].value == 'Multiplicity') and (ws_p['H1'].value == 'Order') and (ws_p['I1'].value == 'Element ID'):
+                        logger.info("The 'Signal Properties' sheet in the {%s} file has the required format." % excelFileLocation)
 
+                        #Clearing the SyncAction Column in signal properties
+                        logger.info("Clearing the {%s} Signal Properties sheet SyncAction column." % excelFileLocation)
+                        ws_p.delete_cols(10)
+                        ws_p.insert_cols(10)
+                        ws_p.cell(row=1, column =10, value = 'SyncAction')
+
+                        #Verify enumeration Excel ws is in correct format
+                        if 'Enumerations' in wb.sheetnames:
+                            ws_e = wb['Enumerations']
+                            if (ws_e['A1'].value == 'Name') and (ws_e['B1'].value == 'Order') and (ws_e['C1'].value == 'Element ID'):
+                                logger.info("The Enumerations sheet in the {%s} file has the required format." % excelFileLocation)
+
+                                #Clearing the SyncAction Column in enumerations
+                                logger.info("Clearing the {%s} Enumerations sheet SyncAction column." % excelFileLocation)
+                                ws_e.delete_cols(4)
+                                ws_e.insert_cols(4)
+                                ws_e.cell(row=1, column =4, value = 'SyncAction')
+
+                                #Verify enumeration literal Excel ws is in correct format
+                                if 'Enumeration Options' in wb.sheetnames:
+                                    ws_l = wb['Enumeration Options']
+                                    if (ws_l['A1'].value == 'Owner') and (ws_l['B1'].value == 'Name') and (ws_l['C1'].value == 'Order') and (ws_l['D1'].value == 'Element ID'):
+                                        logger.info("The 'Enumeration Options' sheet in the {%s} file has the required format." % excelFileLocation)
+
+                                        #Clearing the SyncAction Column in enemuration literals
+                                        logger.info("Clearing the {%s} SyncAction column." % excelFileLocation)
+                                        ws_l.delete_cols(5)
+                                        ws_l.insert_cols(5)
+                                        ws_l.cell(row=1, column =5, value = 'SyncAction')
+
+                                    else:
+                                        logger.error("The 'Enumeration Options' sheet in the {%s} file columns do not follow the required format of [Owner, Name, Order]. Please fix the format and run again." % excelFileLocation)
+                                        errorFlag = 1
+                                        errorMessage = "The 'Enumeration Options' sheet in the {" + excelFileLocation + "} file columns do not follow the required format. The Excel file will NOT be updated."
+                                        errorArray.append(errorMessage)
+                                else:
+                                    logger.error("Could not find 'Enumeration Options' sheet in {%s} file." % excelFileLocation)
+                                    errorFlag = 1
+                                    errorMessage = "Could not find 'Enumeration Options' sheet in the {" + excelFileLocation + "} file. The Excel file will NOT be updated."
+                                    errorArray.append(errorMessage)
+
+                            else:
+                                logger.error("The Enumerations sheet in the {%s} file columns do not follow the required format of [Name, Order]. Please fix the format and run again." % excelFileLocation)
+                                errorFlag = 1
+                                errorMessage = "The Enumerations sheet in the {" + excelFileLocation + "} file columns do not follow the required format. The Excel file will NOT be updated."
+                                errorArray.append(errorMessage)
+                        else:
+                            logger.error("Could not find 'Enumerations' sheet in the {%s} file." % excelFileLocation)
+                            errorFlag = 1
+                            errorMessage = "Could not find 'Enumerations' sheet in the {" + excelFileLocation + "} file. The Excel file will NOT be updated."
+                            errorArray.append(errorMessage)
+
+                    else:
+                        logger.error("The 'Signal Properties' sheet in the {%s} file columns do not follow the required format of [Owner, Name, Documentation, Type, Size, Type Modifier, Multiplicity, Order]. Please fix the format and run again." % excelFileLocation)
+                        errorFlag = 1
+                        errorMessage = "The 'Signal Properties' sheet in the {" + excelFileLocation + "} file columns do not follow the required format. The Excel file will NOT be updated."
+                        errorArray.append(errorMessage)
                 else:
-                    logger.error("The {%s} file columns do not follow the required format of [Name, Alias, Documentation, Subsystem, Version, Author, Device, Property, Action, Value, Explanation, Order]. Please fix the format and run again." % excelFileLocation_Message)
+                    logger.error("Could not find 'Signal Properties' sheet in {%s} file." % excelFileLocation)
                     errorFlag = 1
-                    errorMessage = "The {" + excelFileLocation_Message + "} file columns do not follow the required format. The Excel file will NOT be updated."
+                    errorMessage = "Could not find 'Signal Properties' sheet in {" + excelFileLocation + "} file. The Excel file will NOT be updated."
                     errorArray.append(errorMessage)
+
             else:
-                logger.error("Could not find 'Sheet1' in the {%s} file." % excelFileLocation_Message)
+                logger.error("The 'Signals' sheet in the {%s} file columns do not follow the required format of [Name, Alias, Documentation, Subsystem, Version, Author, Device, Property, Action, Value, Explanation, Order]. Please fix the format and run again." % excelFileLocation)
                 errorFlag = 1
-                errorMessage = "Could not find 'Sheet1' in the {" + excelFileLocation_Message + "} file. The Excel file will NOT be updated."
+                errorMessage = "The 'Signals' sheet in the {" + excelFileLocation + "} file columns do not follow the required format. The Excel file will NOT be updated."
                 errorArray.append(errorMessage)
         else:
-            logger.error("Could not find the Excel file at the following location: %s." % excelFileLocation_Message)
+            logger.error("Could not find 'Signals' sheet in the {%s} file." % excelFileLocation)
             errorFlag = 1
-            errorMessage = "Could not find the Excel file at the following location {" + excelFileLocation_Message + "}. The Excel file will NOT be updated."
+            errorMessage = "Could not find 'Signals' sheet in the {" + excelFileLocation + "} file. The Excel file will NOT be updated."
             errorArray.append(errorMessage)
     else:
-        logger.error("The following export was unsuccessful: %s" % excelFileLocation_Message)
+        logger.error("Could not find the Excel file at the following location: %s." % excelFileLocation)
         errorFlag = 1
-        errorMessage = "The following export was unsuccessful {" + excelFileLocation_Message + "}. The Excel file will NOT be updated."
+        errorMessage = "Could not find the Excel file at the following location {" + excelFileLocation + "}. The Excel file will NOT be updated."
         errorArray.append(errorMessage)
 
-    #If we need to export the Excel Files
-    if generateFile != 0:
-        #Generate the parameter Excel export
-        outputParamArg = '-output "' + excelFileLocation_Parameter + '"'
-        excelParamExport = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-project "Telescope & Site Software Components"', '-template "CSC Signal Properties Export"', '-ssl true', outputParamArg, packageArg, loginArg, passwordArg], check=True)
-        result = excelParamExport.returncode
-    else:
-        result = 0
-
-    #Verify the columns
-    if result == 0:
-        if generateFile != 0:
-            logger.info("The following export was successful: %s" % excelFileLocation_Parameter)
-
-        #Get message parameter Excel file
-        if os.path.isfile(excelFileLocation_Parameter):
-            wb_p = load_workbook(filename = excelFileLocation_Parameter)
-            #Verify message parameter Excel ws is in correct format
-            if 'Sheet1' in wb_p.sheetnames:
-                ws_p = wb_p['Sheet1']
-                if (ws_p['A1'].value == 'Owner') and (ws_p['B1'].value == 'Name') and (ws_p['C1'].value == 'Documentation') and (ws_p['D1'].value == 'Type') and (ws_p['E1'].value == 'Size') and (ws_p['F1'].value == 'Type Modifier') and (ws_p['G1'].value == 'Multiplicity') and (ws_p['H1'].value == 'Order') and (ws_p['I1'].value == 'Element ID'):
-                    logger.info("The {%s} file has the required format." % excelFileLocation_Parameter)
-
-                    #Clearing the SyncAction Column in signal properties
-                    logger.info("Clearing the {%s} SyncAction column." % excelFileLocation_Parameter)
-                    ws_p.delete_cols(10)
-                    ws_p.insert_cols(10)
-                    ws_p.cell(row=1, column =10, value = 'SyncAction')
-
-                else:
-                    logger.error("The {%s} file columns do not follow the required format of [Owner, Name, Documentation, Type, Size, Type Modifier, Multiplicity, Order]. Please fix the format and run again." % excelFileLocation_Parameter)
-                    errorFlag = 1
-                    errorMessage = "The {" + excelFileLocation_Parameter + "} file columns do not follow the required format. The Excel file will NOT be updated."
-                    errorArray.append(errorMessage)
-            else:
-                logger.error("Could not find 'Sheet1' in {%s} file." % excelFileLocation_Parameter)
-                errorFlag = 1
-                errorMessage = "Could not find 'Sheet1' in {" + excelFileLocation_Parameter + "} file. The Excel file will NOT be updated."
-                errorArray.append(errorMessage)
-        else:
-            logger.error("Could not find the Excel file at the following location: %s." % excelFileLocation_Parameter)
-            errorFlag = 1
-            errorMessage = "Could not find the Excel file at the following location {" + excelFileLocation_Parameter + "}. The Excel file will NOT be updated."
-            errorArray.append(errorMessage)
-    else:
-        logger.error("The following export was unsuccessful: %s" % excelFileLocation_Parameter)
-        errorFlag = 1
-        errorMessage = "The following export was unsuccessful {" + excelFileLocation_Parameter + "}. The Excel file will NOT be updated."
-        errorArray.append(errorMessage)
-
-    #If we need to export the Excel Files
-    if generateFile != 0:
-        #Generate the enumeration Excel export
-        outputEnumArg = '-output "' + excelFileLocation_Enumeration + '"'
-        excelEnumExport = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-project "Telescope & Site Software Components"', '-template "CSC Signal Enumerations Export"', '-ssl true', outputEnumArg, packageArg, loginArg, passwordArg], check=True)
-        result = excelEnumExport.returncode
-    else:
-        result = 0
-
-    #Verify the columns
-    if result == 0:
-        if generateFile != 0:
-            logger.info("The following export was successful: %s" % excelFileLocation_Enumeration)
-
-        #Get enumeration Excel file
-        if os.path.isfile(excelFileLocation_Enumeration):
-            wb_e = load_workbook(filename = excelFileLocation_Enumeration)
-            #Verify enumeration Excel ws is in correct format
-            if 'Sheet1' in wb_e.sheetnames:
-                ws_e = wb_e['Sheet1']
-                if (ws_e['A1'].value == 'Name') and (ws_e['B1'].value == 'Order') and (ws_e['C1'].value == 'Element ID'):
-                    logger.info("The {%s} file has the required format." % excelFileLocation_Enumeration)
-
-                    #Clearing the SyncAction Column in enumerations
-                    logger.info("Clearing the {%s} SyncAction column." % excelFileLocation_Enumeration)
-                    ws_e.delete_cols(4)
-                    ws_e.insert_cols(4)
-                    ws_e.cell(row=1, column =4, value = 'SyncAction')
-
-                else:
-                    logger.error("The {%s} file columns do not follow the required format of [Name, Order]. Please fix the format and run again." % excelFileLocation_Enumeration)
-                    errorFlag = 1
-                    errorMessage = "The {" + excelFileLocation_Enumeration + "} file columns do not follow the required format. The Excel file will NOT be updated."
-                    errorArray.append(errorMessage)
-            else:
-                logger.error("Could not find 'Sheet1' in the {%s} file." % excelFileLocation_Enumeration)
-                errorFlag = 1
-                errorMessage = "Could not find 'Sheet1' in the {" + excelFileLocation_Enumeration + "} file. The Excel file will NOT be updated."
-                errorArray.append(errorMessage)
-        else:
-            logger.error("Could not find the Excel file at the following location: %s." % excelFileLocation_Enumeration)
-            errorFlag = 1
-            errorMessage = "Could not find the Excel file at the following location {" + excelFileLocation_Enumeration + "}. The Excel file will NOT be updated."
-            errorArray.append(errorMessage)
-    else:
-        logger.error("The following export was unsuccessful: %s" % excelFileLocation_Enumeration)
-        errorFlag = 1
-        errorMessage = "The following export was unsuccessful {" + excelFileLocation_Enumeration + "}. The Excel file will NOT be updated."
-        errorArray.append(errorMessage)
-
-    #If we need to export the Excel Files
-    if generateFile != 0:
-        #Generate the enumeration literal Excel export
-        outputLitArg = '-output "' + excelFileLocation_Literal + '"'
-        excelLitExport = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-project "Telescope & Site Software Components"', '-template "CSC Signal Enumeration Options Export"', '-ssl true', outputLitArg, packageArg, loginArg, passwordArg], check=True)
-        result = excelLitExport.returncode
-    else:
-        result = 0
-
-    #Verify the columns
-    if result == 0:
-        if generateFile != 0:
-            logger.info("The following export was successful: %s" % excelFileLocation_Literal)
-
-        #Get enumeration literal Excel file
-        if os.path.isfile(excelFileLocation_Literal):
-            wb_l = load_workbook(filename = excelFileLocation_Literal)
-            #Verify enumeration literal Excel ws is in correct format
-            if 'Sheet1' in wb_l.sheetnames:
-                ws_l = wb_l['Sheet1']
-                if (ws_l['A1'].value == 'Owner') and (ws_l['B1'].value == 'Name') and (ws_l['C1'].value == 'Order') and (ws_l['D1'].value == 'Element ID'):
-                    logger.info("The {%s} file has the required format." % excelFileLocation_Literal)
-
-                    #Clearing the SyncAction Column in enemuration literals
-                    logger.info("Clearing the {%s} SyncAction column." % excelFileLocation_Literal)
-                    ws_l.delete_cols(5)
-                    ws_l.insert_cols(5)
-                    ws_l.cell(row=1, column =5, value = 'SyncAction')
-
-                else:
-                    logger.error("The {%s} file columns do not follow the required format of [Owner, Name, Order]. Please fix the format and run again." % excelFileLocation_Literal)
-                    errorFlag = 1
-                    errorMessage = "The {" + excelFileLocation_Literal + "} file columns do not follow the required format. The Excel file will NOT be updated."
-                    errorArray.append(errorMessage)
-            else:
-                logger.error("Could not find 'Sheet1' in {%s} file." % excelFileLocation_Literal)
-                errorFlag = 1
-                errorMessage = "Could not find 'Sheet1' in the {" + excelFileLocation_Literal + "} file. The Excel file will NOT be updated."
-                errorArray.append(errorMessage)
-        else:
-            logger.error("Could not find the Excel file at the following location: %s." % excelFileLocation_Literal)
-            errorFlag = 1
-            errorMessage = "Could not find the Excel file at the following location {" + excelFileLocation_Literal + "}. The Excel file will NOT be updated."
-            errorArray.append(errorMessage)
-    else:
-        logger.error("The following export was unsuccessful: %s" % excelFileLocation_Literal)
-        errorFlag = 1
-        errorMessage = "The following export was unsuccessful {" + excelFileLocation_Literal + "}. The Excel file will NOT be updated."
-        errorArray.append(errorMessage)
-
+    #Check if no errors continue to updating the Excel files
     if errorFlag == 0:
-        updatedFiles = updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocation_Parameter, excelFileLocation_Enumeration, excelFileLocation_Literal, wb, wb_p, wb_e, wb_l, ws, ws_p, ws_e, ws_l, messageType, fileName)
+        updatedFiles = updateExcelFiles(xmlFileLocation, excelFileLocation, wb, ws, ws_p, ws_e, ws_l, messageType, fileName)
     else:
         errorList = "\n".join(errorArray)
         showErrorMessage(fileName, errorList)
 
 
-def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocation_Parameter, excelFileLocation_Enumeration, excelFileLocation_Literal, wb, wb_p, wb_e, wb_l, ws, ws_p, ws_e, ws_l, messageType, fileName):
+def updateExcelFiles(xmlFileLocation, excelFileLocation, wb, ws, ws_p, ws_e, ws_l, messageType, fileName):
     tree = ET.parse(xmlFileLocation)
     treeRoot = tree.getroot()
 
@@ -476,7 +381,7 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         i=2
         while i <= ws_e.max_row:
             cellVal = ws_e.cell(row=i, column=1).value
-            if cellVal == None:
+            if cellVal == None or cellVal == "":
                 ws_e.delete_rows(i)
                 continue
             elif (cellVal not in messageTypeEnums) :
@@ -488,7 +393,7 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
         i=2
         while i <= ws_l.max_row:
             tupVal = (ws_l.cell(row=i, column=1).value, ws_l.cell(row=i, column=2).value)
-            if (ws_l.cell(row=i, column=1).value == None) and (ws_l.cell(row=i, column=2).value == None) :
+            if tupVal == (None, None) or tupVal == ("", "") or tupVal == (None, "") or tupVal == ("", None):
                 ws_l.delete_rows(i)
                 continue
             elif (tupVal not in enumLiterals) :
@@ -516,13 +421,6 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
             desc = ""
 
             #Get values
-            if member.find('Alias') != None:
-                alias = member.find('Alias').text
-            else:
-                logger.error("The message at order number {%s} has no Alias tag in the XML." % str(messageOrder))
-                updateErrorFlag = 1
-                updateErrorMessage = "The message at order number {" + str(messageOrder) + "} has no Alias tag in the XML. The Excel files for {" + fileName +"} will NOT be updated."
-                updateErrorArray.append(updateErrorMessage)
             if member.find('EFDB_Topic') != None:
                 topic = member.find('EFDB_Topic').text
                 if topic == None or topic == "":
@@ -535,14 +433,8 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
                 updateErrorFlag = 1
                 updateErrorMessage = "The message at order number {" + str(messageOrder) + "} has no EFDB_Topic tag. The Excel files for {" + fileName +"} will NOT be updated."
                 updateErrorArray.append(updateErrorMessage)
-            if alias == None or alias == "":
-                if topic != None and topic != "":
-                    alias = topic.split('_')[-1]
-                else:
-                    logger.error("The message at order number {%s} has no Alias or EFDB_Topic." % str(messageOrder))
-                    updateErrorFlag = 1
-                    updateErrorMessage = "The message at order number {" + str(messageOrder) + "} has no Alias or EFDB_Topic. The Excel files for {" + fileName +"} will NOT be updated."
-                    updateErrorArray.append(updateErrorMessage)
+            if member.find('Alias') != None:
+                alias = member.find('Alias').text
             if member.find('Subsystem') != None:
                 subsystem = member.find('Subsystem').text
             if member.find('Version') != None:
@@ -725,25 +617,9 @@ def updateExcelFiles(xmlFileLocation, excelFileLocation_Message, excelFileLocati
 
         #If no errors save the Excel Files
         if updateErrorFlag == 0:
-            #Save enumeration file
-            logger.info("Saving the {%s} file." % excelFileLocation_Enumeration)
-            pd_wb_e = pd.DataFrame(ws_e.values)
-            pd_wb_e.to_excel(excelFileLocation_Enumeration,header=False,index=False)
-
-            #Save literals file
-            logger.info("Saving the {%s} file." % excelFileLocation_Literal)
-            pd_wb_l = pd.DataFrame(ws_l.values)
-            pd_wb_l.to_excel(excelFileLocation_Literal,header=False,index=False)
-
-            #Save messages file
-            logger.info("Saving the {%s} file." % excelFileLocation_Message)
-            pd_wb = pd.DataFrame(ws.values)
-            pd_wb.to_excel(excelFileLocation_Message,header=False,index=False)
-
-            #Save parameters file
-            logger.info("Saving the {%s} file." % excelFileLocation_Parameter)
-            pd_wb_p = pd.DataFrame(ws_p.values)
-            pd_wb_p.to_excel(excelFileLocation_Parameter,header=False,index=False)
+            #Save Excel files
+            logger.info("Saving the {%s} file." % excelFileLocation)
+            wb.save(excelFileLocation)
         else:
             #Show error message
             updateErrorList = "\n".join(updateErrorArray)
@@ -761,10 +637,11 @@ currdir = os.getcwd()
 home = str(Path.home())
 xmlFileLocation = ""
 excelFileLocation_Message = ""
-excelFileLocation_Parameter = ""
-excelFileLocation_Enumeration = ""
-excelFileLocation_Literal = ""
-needExport = 0
+excelFileLocation = ""
+excelFileLocation = ""
+excelFileLocation = ""
+questionYes = {"Y", "y", "Yes", "yes"}
+questionNo = {"N", "n", "No", "no"}
 
 #Setup logging
 user = getpass.getuser()
@@ -796,20 +673,5 @@ stderr_log_handler.setFormatter(formatter)
 logger.setLevel('DEBUG')
 
 #Ask if Excel exports are required
-showExportQuestion()
-
-#If exports are needed get login credentials
-if needExport == 1:
-    #Prompt for Teamwork Cloud username
-    username = input("Please enter your Teamwork Cloud username: ")
-    loginArg = '-login "' + username + '"'
-
-    #Prompt for Teamwork Cloud password
-    password = getpass.getpass(prompt="Please enter your Teamwork Cloud password: ")
-    passwordArg = '-password "' + password + '"'
-
-    #Prompt to select generate script
-    selectGenerateFile()
-else:
-    generateFile = 0
-    getXML(generateFile)
+#showExportQuestion(root)
+needExport = needExport()
