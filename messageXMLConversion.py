@@ -21,6 +21,11 @@ def needExport():
     #If exports are needed get login credentials
     if response in questionYes:
         logger.info("You chose to export the Excel files.")
+        branch = input("\nDo you need to export from a branch? This is typically required if there is a new CSC package for import. [Y/N]: ")
+        if branch in questionYes:
+            global branchName
+            branchName = input("Please enter the branch name: ")
+            logger.info("You chose to export from the branch: %s" % branchName)
 
         #Prompt to select generate script
         selectGenerateFile()
@@ -112,6 +117,8 @@ def getXML(generateFile):
                 #Temporarily set path to same directory as python file
                 path, filename = os.path.split(xmlFileLocation)
                 path = currdir
+                #Replace backslash with forward slash to fix Windows error
+                path = path.replace("\\", "/")
                 fileName = filename
                 fileBase = filename.split('.')[0]
                 messageType = fileBase.split('_')[1]
@@ -132,6 +139,8 @@ def exportExcel(xmlFileList, generateFile):
         #Temporarily set path to same directory as python file
         path, filename = os.path.split(xmlFileLocation)
         path = currdir
+        #Replace backslash with forward slash to fix Windows error
+        path = path.replace("\\", "/")
         fileName = filename
         fileBase = filename.split('.')[0]
         messageType = fileBase.split('_')[1]
@@ -141,6 +150,11 @@ def exportExcel(xmlFileList, generateFile):
         excelFileLocation = fileLocation + fileBase + ".xlsx"
         propFileLocation = fileLocation + fileBase + ".properties"
 
+        #Check if file directory exists
+        if os.path.isdir(fileLocation) == False:
+            os.mkdir(fileLocation)
+            logger.info("The folder does not exist and will be created: %s" % fileLocation)
+
         #Create the property file
         project = 'project = Telescope & Site Software Components\n'
         package = 'package = ' + cscName + '::Signals::' + messageType + '\n'
@@ -149,17 +163,18 @@ def exportExcel(xmlFileList, generateFile):
 
         propFile = open(propFileLocation, "w")
         propFile.write(project)
+        if branchName != "N/A":
+            branch = 'branch = '+ branchName +'\n'
+            propFile.write(branch)
         propFile.write(package)
         propFile.write(template)
         propFile.write(output)
         propFile.close()
         propArray.append(propFileLocation)
 
-    propList = '" "'.join(propArray)
-    #Set the property argument
-    propArg = '-properties "' + propList + '"'
-
-    exportResult = subprocess.run([generateFile, '-server "twcloud.lsst.org"', '-servertype "twcloud"', '-ssl true', '-login "rgenerator"', '-spassword "4e0e16bb44e1c62fe007b776d088c899c585425cbf6f424161867c13735f7f67e683f676e4eb811e4ad464e04c822cb14c1c8a385bc7461b8e94ae7292a31ee9e2758a20124d77b7c79546c6be4878db10f021f91f147833cc63fb93b8aefb6f13110dd959128c49a1da292c7ee8f98640982e1e75b40abc397514d4712d471c"', '-leaveprojectopen true', propArg], check=True)
+    propList = "' '".join(propArray)
+    #Run the command line generate script to export the files
+    exportResult = subprocess.run([generateFile, "-server 'twcloud.lsst.org'", "-servertype 'twcloud'", "-ssl true", "-login 'rgenerator'", "-spassword '4e0e16bb44e1c62fe007b776d088c899c585425cbf6f424161867c13735f7f67e683f676e4eb811e4ad464e04c822cb14c1c8a385bc7461b8e94ae7292a31ee9e2758a20124d77b7c79546c6be4878db10f021f91f147833cc63fb93b8aefb6f13110dd959128c49a1da292c7ee8f98640982e1e75b40abc397514d4712d471c'", "-leaveprojectopen true", "-properties '" + propList + "'"], check=True)
     result = exportResult.returncode
     return result
 
@@ -642,6 +657,7 @@ excelFileLocation = ""
 excelFileLocation = ""
 questionYes = {"Y", "y", "Yes", "yes"}
 questionNo = {"N", "n", "No", "no"}
+branchName = "N/A"
 
 #Setup logging
 user = getpass.getuser()
