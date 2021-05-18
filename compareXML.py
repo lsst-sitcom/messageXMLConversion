@@ -106,11 +106,6 @@ def exportXML(xmlFileList, generateFile):
             logger.info("Deleting the existing XML file: %s" % xmlFileLocation)
 
         #Create the property file
-        #Easier way can be changing the template names
-        if ((messageType == "Commands") or (messageType == "Events")):
-           signalType = messageType[:-1]
-        else:
-           signalType = messageType
         project = 'project = Telescope & Site Software Components\n'
         package = 'package = ' + cscName + '\n'
         template = 'template = '+ signalType + ' XML Export\n'
